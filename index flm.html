@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ciné à deux</title>
+<style>
+  :root{
+    --bg:#0e1016; --bg-2:#171a24; --line:#2a2e3c; --text:#eef0f6;
+    --muted:#9096ad; --accent:#e8a33d; --accent-dim:#8a6427;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%; margin:0;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex; flex-direction:column;
+  }
+  header{
+    padding:14px 20px; display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid var(--line); background:var(--bg-2); gap:12px; flex-wrap:wrap;
+  }
+  .brand{ display:flex; align-items:baseline; gap:8px; }
+  .brand .glyph{ color:var(--accent); font-size:20px; }
+  .brand h1{ font-size:17px; margin:0; font-weight:600; }
+  .hdr-right{ display:flex; align-items:center; gap:14px; }
+  .room-badge{ display:none; align-items:center; gap:8px; font-size:13px; color:var(--muted); background:var(--bg); border:1px solid var(--line); border-radius:20px; padding:5px 12px; }
+  .room-badge.show{ display:flex; }
+  .room-badge b{ color:var(--text); letter-spacing:1px; }
+  .room-badge button{ background:none; border:none; color:var(--accent); font-size:12px; padding:0; cursor:pointer; font-weight:600; }
+  .peers{ font-size:13px; color:var(--muted); display:flex; align-items:center; gap:6px; }
+  .dot{ width:7px;height:7px;border-radius:50%; background:#4caf6d; box-shadow:0 0 0 3px rgba(76,175,109,.15); }
+  .dot.off{ background:var(--muted); box-shadow:none; }
+  main{ flex:1; display:flex; align-items:center; justify-content:center; padding:24px; overflow-x:auto; }
+  .panel{ width:100%; max-width:440px; display:none; }
+  .panel.active{ display:block; }
+  .panel h2{ font-size:19px; margin:0 0 8px; font-weight:600; }
+  .panel p.sub{ color:var(--muted); font-size:14px; line-height:1.55; margin:0 0 20px; }
+  .tabs{ display:flex; border:1px solid var(--line); border-radius:9px; overflow:hidden; margin-bottom:20px; }
+  .tabs button{ flex:1; background:var(--bg-2); color:var(--muted); border:none; padding:10px 0; font-size:14px; font-weight:600; cursor:pointer; }
+  .tabs button.active{ background:var(--accent); color:#1a1200; }
+  .field{ display:flex; gap:8px; }
+  input[type=url], input[type=text]{
+    flex:1; min-width:0; padding:12px 14px; background:var(--bg-2);
+    border:1px solid var(--line); border-radius:8px; color:var(--text); font-size:14px;
+  }
+  input[type=text]{ text-align:center; letter-spacing:3px; text-transform:uppercase; }
+  input:focus{ outline:none; border-color:var(--accent); }
+  button{ font:inherit; cursor:pointer; border:none; border-radius:8px; padding:12px 18px; font-size:14px; font-weight:600; }
+  .primary{ background:var(--accent); color:#1a1200; }
+  .ghost{ background:transparent; color:var(--muted); border:1px solid var(--line); }
+  .full{ width:100%; }
+  .code-display{ text-align:center; margin:8px 0 22px; padding:22px 16px; background:var(--bg-2); border:1px solid var(--line); border-radius:12px; }
+  .code-display .code{ font-size:32px; font-weight:700; letter-spacing:6px; color:var(--accent); }
+  .code-display .hint{ font-size:13px; color:var(--muted); margin-top:8px; }
+  .waiting-dot{ width:9px; height:9px; border-radius:50%; background:var(--accent); display:inline-block; margin-right:8px; vertical-align:middle; }
+  .stage{ width:100%; max-width:1100px; }
+  .player-wrap{ width:100%; }
+  video, #ytFrame{ width:100%; max-height:72vh; border-radius:10px; background:#000; display:block; border:none; }
+  #ytFrame{ aspect-ratio:16/9; }
+  .below{ margin-top:12px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .status{ font-size:13px; color:var(--muted); }
+  .status strong{ color:var(--text); font-weight:500; }
+  .actions{ display:flex; gap:8px; }
+  footer{ text-align:center; font-size:12px; color:var(--muted); padding:10px; }
+  .error{ color:#e08a8a; font-size:13px; margin-top:8px; display:none; }
+  .error.show{ display:block; }
+  .note{ font-size:12px; color:var(--muted); margin-top:10px; line-height:1.5; }
+  .configwarn{
+    max-width:440px; margin:0 auto; padding:16px; background:#3a2a12; border:1px solid var(--accent);
+    border-radius:10px; font-size:13px; line-height:1.5; color:#f4d9a6;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><span class="glyph">&#9654;</span><h1>Ciné à deux</h1></div>
+  <div class="hdr-right">
+    <div class="room-badge" id="roomBadge">Salle <b id="roomCodeLabel"></b> <button id="copyCodeBtn">copier</button></div>
+    <div class="peers"><span class="dot off" id="peerDot"></span><span id="peerLabel">non connecté</span></div>
+  </div>
+</header>
+
+<main>
+
+  <div id="configWarning" class="configwarn" style="display:none;">
+    ⚠️ Il manque la configuration Firebase. Ouvrez ce fichier <code>index.html</code>, repérez la section
+    <code>firebaseConfig</code> tout en haut du script, et collez-y les valeurs de votre projet Firebase
+    (voir le README fourni à côté de ce fichier).
+  </div>
+
+  <div class="panel active" id="panelLanding">
+    <h2>Regarder un film à deux</h2>
+    <p class="sub">Une personne crée la salle et charge la vidéo, l'autre rejoint avec le code. La lecture, la pause et l'avance se synchronisent entre les deux écrans.</p>
+    <div class="tabs">
+      <button class="active" id="tabCreate">Créer une salle</button>
+      <button id="tabJoin">J'ai un code</button>
+    </div>
+    <div id="createBox">
+      <button class="primary full" id="createBtn">Créer ma salle</button>
+    </div>
+    <div id="joinBox" style="display:none;">
+      <div class="field">
+        <input type="text" id="codeInput" maxlength="6" placeholder="CODE">
+        <button class="primary" id="joinBtn">Rejoindre</button>
+      </div>
+      <div class="error" id="joinError">Cette salle n'existe pas encore, vérifiez le code.</div>
+    </div>
+  </div>
+
+  <div class="panel" id="panelHostSetup">
+    <div class="code-display">
+      <div class="code" id="hostCode"></div>
+      <div class="hint">Envoyez ce code à votre ami·e pour qu'il/elle rejoigne la salle.</div>
+    </div>
+    <h2>Charger la vidéo</h2>
+    <p class="sub">Collez un lien direct de vidéo (.mp4, .webm…) ou un lien YouTube.</p>
+    <div class="field">
+      <input type="url" id="urlInput" placeholder="https://... ou https://youtube.com/watch?v=..." autocomplete="off">
+      <button class="primary" id="loadBtn">Charger</button>
+    </div>
+    <div class="note">Avec YouTube, la synchronisation dépend du lecteur YouTube lui-même et peut être un peu moins précise qu'avec un lien vidéo direct.</div>
+  </div>
+
+  <div class="panel" id="panelWaiting">
+    <h2><span class="waiting-dot"></span>En attente</h2>
+    <p class="sub">Vous avez rejoint la salle. La vidéo apparaîtra automatiquement dès que votre ami·e l'aura chargée.</p>
+  </div>
+
+  <div class="stage" id="stage" style="display:none;">
+    <div class="player-wrap">
+      <video id="player" playsinline></video>
+      <iframe id="ytFrame" style="display:none;" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+    </div>
+    <div class="below">
+      <div class="status" id="statusLine"><strong>Synchronisé</strong></div>
+      <div class="actions">
+        <button class="ghost" id="resyncBtn">Resynchroniser</button>
+        <button class="ghost" id="changeBtn" style="display:none;">Changer de vidéo</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>Le code de salle relie les deux écrans — envoyez ce même site (le lien GitHub Pages) à votre ami·e.</footer>
+
+<!-- Firebase (compat SDK, simple à utiliser sans étape de build) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+
+<script>
+(function(){
+
+  // ======================================================
+  // 1) COLLEZ ICI LA CONFIGURATION DE VOTRE PROJET FIREBASE
+  //    (Console Firebase > Paramètres du projet > Vos applications)
+  // ======================================================
+  const firebaseConfig = {
+    apiKey: "REMPLACEZ_MOI",
+    authDomain: "REMPLACEZ_MOI.firebaseapp.com",
+    databaseURL: "https://REMPLACEZ_MOI-default-rtdb.firebaseio.com",
+    projectId: "REMPLACEZ_MOI"
+  };
+  // ======================================================
+
+  const configWarning = document.getElementById('configWarning');
+  const isConfigured = firebaseConfig.apiKey && firebaseConfig.apiKey.indexOf('REMPLACEZ') === -1;
+  if (!isConfigured){ configWarning.style.display = 'block'; }
+
+  let rtdb = null;
+  if (isConfigured){
+    firebase.initializeApp(firebaseConfig);
+    rtdb = firebase.database();
+  }
+
+  const CLIENT_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+  const panelLanding = document.getElementById('panelLanding');
+  const panelHostSetup = document.getElementById('panelHostSetup');
+  const panelWaiting = document.getElementById('panelWaiting');
+  const stage = document.getElementById('stage');
+
+  const tabCreate = document.getElementById('tabCreate');
+  const tabJoin = document.getElementById('tabJoin');
+  const createBox = document.getElementById('createBox');
+  const joinBox = document.getElementById('joinBox');
+  const createBtn = document.getElementById('createBtn');
+  const codeInput = document.getElementById('codeInput');
+  const joinBtn = document.getElementById('joinBtn');
+  const joinError = document.getElementById('joinError');
+
+  const hostCode = document.getElementById('hostCode');
+  const urlInput = document.getElementById('urlInput');
+  const loadBtn = document.getElementById('loadBtn');
+
+  const player = document.getElementById('player');
+  const ytFrame = document.getElementById('ytFrame');
+  const resyncBtn = document.getElementById('resyncBtn');
+  const changeBtn = document.getElementById('changeBtn');
+
+  const roomBadge = document.getElementById('roomBadge');
+  const roomCodeLabel = document.getElementById('roomCodeLabel');
+  const copyCodeBtn = document.getElementById('copyCodeBtn');
+  const peerDot = document.getElementById('peerDot');
+  const peerLabel = document.getElementById('peerLabel');
+
+  const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  function genCode(){
+    let c = '';
+    for (let i=0;i<6;i++) c += CHARS[Math.floor(Math.random()*CHARS.length)];
+    return c;
+  }
+
+  let currentCode = null;
+  let applyingRemote = false;
+  let mode = 'video';
+  let currentUrl = null;
+  let ytState = { playing:false, currentTime:0, lastUpdate:Date.now() };
+  let ytListenTimer = null;
+  let stateRef = null;
+
+  function showPanel(el){
+    [panelLanding, panelHostSetup, panelWaiting].forEach(p => p.classList.remove('active'));
+    stage.style.display = 'none';
+    if (el === stage){ stage.style.display = 'block'; }
+    else el.classList.add('active');
+  }
+
+  tabCreate.addEventListener('click', () => {
+    tabCreate.classList.add('active'); tabJoin.classList.remove('active');
+    createBox.style.display = 'block'; joinBox.style.display = 'none';
+  });
+  tabJoin.addEventListener('click', () => {
+    tabJoin.classList.add('active'); tabCreate.classList.remove('active');
+    joinBox.style.display = 'block'; createBox.style.display = 'none';
+  });
+
+  function setRoomBadge(code){ roomCodeLabel.textContent = code; roomBadge.classList.add('show'); }
+
+  copyCodeBtn.addEventListener('click', () => {
+    if (!currentCode) return;
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(currentCode).then(() => {
+        copyCodeBtn.textContent = 'copié !';
+        setTimeout(() => { copyCodeBtn.textContent = 'copier'; }, 1500);
+      }).catch(()=>{});
+    }
+  });
+
+  function connectToCode(code){
+    currentCode = code;
+    setRoomBadge(code);
+    if (!rtdb){ peerLabel.textContent = 'Firebase non configuré'; return; }
+
+    stateRef = rtdb.ref('rooms/' + code + '/state');
+    stateRef.on('value', snap => {
+      const state = snap.val();
+      if (!state || state.clientId === CLIENT_ID) return;
+      handleRemoteState(state);
+    });
+
+    const presRef = rtdb.ref('rooms/' + code + '/presence/' + CLIENT_ID);
+    presRef.set(true);
+    presRef.onDisconnect().remove();
+    rtdb.ref('rooms/' + code + '/presence').on('value', snap => {
+      const val = snap.val();
+      const n = val ? Object.keys(val).length : 1;
+      peerDot.classList.remove('off');
+      peerLabel.textContent = n > 1 ? n + ' personnes ici' : "en attente de l'autre écran…";
+    });
+  }
+
+  createBtn.addEventListener('click', () => {
+    const code = genCode();
+    connectToCode(code);
+    hostCode.textContent = code;
+    showPanel(panelHostSetup);
+    urlInput.focus();
+  });
+
+  loadBtn.addEventListener('click', () => {
+    const url = urlInput.value.trim();
+    if (!url) return;
+    startVideo(url);
+    persistState({ url, playing:false, time:0 }, 'load');
+    changeBtn.style.display = 'inline-block';
+    showPanel(stage);
+  });
+
+  changeBtn.addEventListener('click', () => {
+    showPanel(panelHostSetup);
+    urlInput.value = '';
+    urlInput.focus();
+  });
+
+  joinBtn.addEventListener('click', async () => {
+    const code = codeInput.value.trim().toUpperCase();
+    if (code.length < 4) return;
+    joinError.classList.remove('show');
+    connectToCode(code);
+
+    if (!rtdb) return;
+    try {
+      const snap = await rtdb.ref('rooms/' + code + '/state').once('value');
+      const state = snap.val();
+      if (state && state.url){
+        applyRemoteState(state, true);
+        showPanel(stage);
+      } else {
+        showPanel(panelWaiting);
+      }
+    } catch(e){
+      showPanel(panelWaiting);
+    }
+  });
+
+  resyncBtn.addEventListener('click', async () => {
+    if (!rtdb || !currentCode) return;
+    const snap = await rtdb.ref('rooms/' + currentCode + '/state').once('value');
+    const state = snap.val();
+    if (state) applyRemoteState(state, true);
+  });
+
+  // --- source detection ---
+  function extractYouTubeId(url){
+    try{
+      const u = new URL(url);
+      const host = u.hostname.replace(/^www\./, '');
+      if (host === 'youtu.be') return u.pathname.slice(1);
+      if (host === 'youtube.com' || host === 'm.youtube.com'){
+        if (u.searchParams.get('v')) return u.searchParams.get('v');
+        const m = u.pathname.match(/\/embed\/([^/?]+)/);
+        if (m) return m[1];
+      }
+    } catch(e){}
+    return null;
+  }
+
+  function startVideo(url){
+    currentUrl = url;
+    const ytId = extractYouTubeId(url);
+    if (ytId){
+      mode = 'youtube';
+      player.style.display = 'none';
+      ytFrame.style.display = 'block';
+      ytState = { playing:false, currentTime:0, lastUpdate:Date.now() };
+      ytFrame.src = 'https://www.youtube.com/embed/' + ytId + '?enablejsapi=1&playsinline=1&rel=0';
+      clearInterval(ytListenTimer);
+      let tries = 0;
+      ytListenTimer = setInterval(() => {
+        tries++;
+        try {
+          if (ytFrame.contentWindow) ytFrame.contentWindow.postMessage(JSON.stringify({event:'listening', id:'ytplayer', channel:'widget'}), '*');
+        } catch(e){}
+        if (tries > 20) clearInterval(ytListenTimer);
+      }, 300);
+    } else {
+      mode = 'video';
+      ytFrame.style.display = 'none';
+      player.style.display = 'block';
+      if (player.getAttribute('src') !== url) player.src = url;
+    }
+  }
+
+  function ytPostCommand(func, args){
+    if (!ytFrame.contentWindow) return;
+    try { ytFrame.contentWindow.postMessage(JSON.stringify({event:'command', func:func, args: args === undefined ? '' : args}), '*'); } catch(e){}
+  }
+
+  function seekAndPlay(time, playing, force){
+    if (mode === 'youtube'){
+      const delay = force ? 1200 : 0;
+      setTimeout(() => {
+        ytPostCommand('seekTo', [time, true]);
+        if (playing) ytPostCommand('playVideo'); else ytPostCommand('pauseVideo');
+        ytState.playing = playing; ytState.currentTime = time; ytState.lastUpdate = Date.now();
+      }, delay);
+    } else {
+      if (force || Math.abs(player.currentTime - time) > 0.6){
+        try { player.currentTime = time; } catch(e){}
+      }
+      if (playing) player.play().catch(()=>{}); else player.pause();
+    }
+  }
+
+  window.addEventListener('message', (e) => {
+    if (mode !== 'youtube') return;
+    let data;
+    try { data = JSON.parse(e.data); } catch(err){ return; }
+    if (data.event === 'infoDelivery' && data.info){
+      const info = data.info;
+      const now = Date.now();
+      if (typeof info.currentTime === 'number'){
+        if (ytState.playing && !applyingRemote){
+          const expected = ytState.currentTime + (now - ytState.lastUpdate) / 1000;
+          if (Math.abs(info.currentTime - expected) > 1.5) localSeek(info.currentTime, ytState.playing);
+        }
+        ytState.currentTime = info.currentTime;
+        ytState.lastUpdate = now;
+      }
+      if (typeof info.playerState === 'number'){
+        if (!applyingRemote){
+          if (info.playerState === 1 && !ytState.playing){ ytState.playing = true; localPlay(ytState.currentTime); }
+          else if (info.playerState === 2 && ytState.playing){ ytState.playing = false; localPause(ytState.currentTime); }
+        } else {
+          ytState.playing = (info.playerState === 1);
+        }
+      }
+    }
+  });
+
+  player.addEventListener('play', () => localPlay(player.currentTime));
+  player.addEventListener('pause', () => localPause(player.currentTime));
+  player.addEventListener('seeked', () => localSeek(player.currentTime, !player.paused));
+
+  function localPlay(time){ if (applyingRemote) return; persistState({ url: currentUrl, playing:true, time }, 'play'); }
+  function localPause(time){ if (applyingRemote) return; persistState({ url: currentUrl, playing:false, time }, 'pause'); }
+  function localSeek(time, playing){ if (applyingRemote) return; persistState({ url: currentUrl, playing, time }, 'seek'); }
+
+  function persistState(state, action){
+    if (!stateRef) return;
+    stateRef.set(Object.assign({}, state, {
+      action: action,
+      clientId: CLIENT_ID,
+      updatedAt: Date.now()
+    }));
+  }
+
+  function applyRemoteState(state, force){
+    handleRemoteState(state, force);
+  }
+
+  function handleRemoteState(state, forceOverride){
+    if (!state || !state.url) return;
+    const isNewVideo = (state.url !== currentUrl);
+    const force = forceOverride || isNewVideo || state.action === 'load' || state.action === 'seek';
+
+    applyingRemote = true;
+    if (isNewVideo) startVideo(state.url);
+    let target = state.time || 0;
+    if (state.playing && state.updatedAt) target += (Date.now() - state.updatedAt) / 1000;
+    seekAndPlay(target, !!state.playing, force);
+    setTimeout(() => { applyingRemote = false; }, (mode === 'youtube') ? (force ? 1600 : 300) : (force ? 500 : 200));
+
+    if (panelWaiting.classList.contains('active')) showPanel(stage);
+  }
+})();
+</script>
+
+</body>
+</html>
