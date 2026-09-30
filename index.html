@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Ciné à deux</title>
+<title>Flux à deux</title>
 <style>
   :root{
     --bg:#0e1016; --bg-2:#171a24; --line:#2a2e3c; --text:#eef0f6;
@@ -16,10 +16,7 @@
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     display:flex; flex-direction:column;
   }
-  header{
-    padding:14px 20px; display:flex; align-items:center; justify-content:space-between;
-    border-bottom:1px solid var(--line); background:var(--bg-2); gap:12px; flex-wrap:wrap;
-  }
+  header{ padding:14px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); background:var(--bg-2); gap:12px; flex-wrap:wrap; }
   .brand{ display:flex; align-items:baseline; gap:8px; }
   .brand .glyph{ color:var(--accent); font-size:20px; }
   .brand h1{ font-size:17px; margin:0; font-weight:600; }
@@ -40,11 +37,11 @@
   .tabs button{ flex:1; background:var(--bg-2); color:var(--muted); border:none; padding:10px 0; font-size:14px; font-weight:600; cursor:pointer; }
   .tabs button.active{ background:var(--accent); color:#1a1200; }
   .field{ display:flex; gap:8px; }
-  input[type=url], input[type=text]{
+  input[type=text]{
     flex:1; min-width:0; padding:12px 14px; background:var(--bg-2);
     border:1px solid var(--line); border-radius:8px; color:var(--text); font-size:14px;
+    text-align:center; letter-spacing:3px; text-transform:uppercase;
   }
-  input[type=text]{ text-align:center; letter-spacing:3px; text-transform:uppercase; }
   input:focus{ outline:none; border-color:var(--accent); }
   button{ font:inherit; cursor:pointer; border:none; border-radius:8px; padding:12px 18px; font-size:14px; font-weight:600; }
   .primary{ background:var(--accent); color:#1a1200; }
@@ -54,10 +51,10 @@
   .code-display .code{ font-size:32px; font-weight:700; letter-spacing:6px; color:var(--accent); }
   .code-display .hint{ font-size:13px; color:var(--muted); margin-top:8px; }
   .waiting-dot{ width:9px; height:9px; border-radius:50%; background:var(--accent); display:inline-block; margin-right:8px; vertical-align:middle; }
+  .share-choices{ display:flex; gap:10px; flex-wrap:wrap; }
+  .share-choices button{ flex:1; }
   .stage{ width:100%; max-width:1100px; }
-  .player-wrap{ width:100%; }
-  video, #ytFrame{ width:100%; max-height:72vh; border-radius:10px; background:#000; display:block; border:none; }
-  #ytFrame{ aspect-ratio:16/9; }
+  video{ width:100%; max-height:72vh; border-radius:10px; background:#000; display:block; }
   .below{ margin-top:12px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
   .status{ font-size:13px; color:var(--muted); }
   .status strong{ color:var(--text); font-weight:500; }
@@ -65,17 +62,14 @@
   footer{ text-align:center; font-size:12px; color:var(--muted); padding:10px; }
   .error{ color:#e08a8a; font-size:13px; margin-top:8px; display:none; }
   .error.show{ display:block; }
-  .note{ font-size:12px; color:var(--muted); margin-top:10px; line-height:1.5; }
-  .configwarn{
-    max-width:440px; margin:0 auto; padding:16px; background:#3a2a12; border:1px solid var(--accent);
-    border-radius:10px; font-size:13px; line-height:1.5; color:#f4d9a6;
-  }
+  .note{ font-size:12px; color:var(--muted); margin-top:14px; line-height:1.5; }
+  .configwarn{ max-width:440px; margin:0 auto; padding:16px; background:#3a2a12; border:1px solid var(--accent); border-radius:10px; font-size:13px; line-height:1.5; color:#f4d9a6; }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="brand"><span class="glyph">&#9654;</span><h1>Ciné à deux</h1></div>
+  <div class="brand"><span class="glyph">&#9679;</span><h1>Flux à deux</h1></div>
   <div class="hdr-right">
     <div class="room-badge" id="roomBadge">Salle <b id="roomCodeLabel"></b> <button id="copyCodeBtn">copier</button></div>
     <div class="peers"><span class="dot off" id="peerDot"></span><span id="peerLabel">non connecté</span></div>
@@ -85,27 +79,25 @@
 <main>
 
   <div id="configWarning" class="configwarn" style="display:none;">
-    ⚠️ Il manque la configuration Firebase. Ouvrez ce fichier <code>index.html</code>, repérez la section
-    <code>firebaseConfig</code> tout en haut du script, et collez-y les valeurs de votre projet Firebase
-    (voir le README fourni à côté de ce fichier).
+    ⚠️ Il manque la configuration Supabase. Ouvrez <code>index.html</code>, repérez
+    <code>SUPABASE_URL</code> et <code>SUPABASE_ANON_KEY</code> tout en haut du script,
+    et collez-y les valeurs de votre projet (voir le README fourni à côté de ce fichier).
   </div>
 
   <div class="panel active" id="panelLanding">
-    <h2>Regarder un film à deux</h2>
-    <p class="sub">Une personne crée la salle et charge la vidéo, l'autre rejoint avec le code. La lecture, la pause et l'avance se synchronisent entre les deux écrans.</p>
+    <h2>Partager un flux vidéo en direct</h2>
+    <p class="sub">Une personne partage son écran ou sa caméra, l'autre la voit en direct — comme un appel vidéo, pas besoin d'un fichier ou d'un lien.</p>
     <div class="tabs">
       <button class="active" id="tabCreate">Créer une salle</button>
       <button id="tabJoin">J'ai un code</button>
     </div>
-    <div id="createBox">
-      <button class="primary full" id="createBtn">Créer ma salle</button>
-    </div>
+    <div id="createBox"><button class="primary full" id="createBtn">Créer ma salle</button></div>
     <div id="joinBox" style="display:none;">
       <div class="field">
         <input type="text" id="codeInput" maxlength="6" placeholder="CODE">
         <button class="primary" id="joinBtn">Rejoindre</button>
       </div>
-      <div class="error" id="joinError">Cette salle n'existe pas encore, vérifiez le code.</div>
+      <div class="error" id="joinError">Impossible de rejoindre, vérifiez le code.</div>
     </div>
   </div>
 
@@ -114,68 +106,48 @@
       <div class="code" id="hostCode"></div>
       <div class="hint">Envoyez ce code à votre ami·e pour qu'il/elle rejoigne la salle.</div>
     </div>
-    <h2>Charger la vidéo</h2>
-    <p class="sub">Collez un lien direct de vidéo (.mp4, .webm…) ou un lien YouTube.</p>
-    <div class="field">
-      <input type="url" id="urlInput" placeholder="https://... ou https://youtube.com/watch?v=..." autocomplete="off">
-      <button class="primary" id="loadBtn">Charger</button>
+    <h2>Que voulez-vous partager ?</h2>
+    <div class="share-choices">
+      <button class="primary" id="shareScreenBtn">🖥️ Mon écran</button>
+      <button class="primary" id="shareCamBtn">🎥 Ma caméra</button>
     </div>
-    <div class="note">Avec YouTube, la synchronisation dépend du lecteur YouTube lui-même et peut être un peu moins précise qu'avec un lien vidéo direct.</div>
+    <div class="note">Le navigateur va demander une autorisation. Gardez cet onglet ouvert pendant tout le partage.</div>
   </div>
 
   <div class="panel" id="panelWaiting">
     <h2><span class="waiting-dot"></span>En attente</h2>
-    <p class="sub">Vous avez rejoint la salle. La vidéo apparaîtra automatiquement dès que votre ami·e l'aura chargée.</p>
+    <p class="sub">Vous avez rejoint la salle. Le flux apparaîtra automatiquement dès que votre ami·e lancera le partage.</p>
   </div>
 
   <div class="stage" id="stage" style="display:none;">
-    <div class="player-wrap">
-      <video id="player" playsinline></video>
-      <iframe id="ytFrame" style="display:none;" allow="autoplay; encrypted-media" allowfullscreen></iframe>
-    </div>
+    <video id="player" autoplay playsinline></video>
     <div class="below">
-      <div class="status" id="statusLine"><strong>Synchronisé</strong></div>
-      <div class="actions">
-        <button class="ghost" id="resyncBtn">Resynchroniser</button>
-        <button class="ghost" id="changeBtn" style="display:none;">Changer de vidéo</button>
-      </div>
+      <div class="status" id="statusLine"><strong>En direct</strong></div>
+      <div class="actions"><button class="ghost" id="stopBtn" style="display:none;">Arrêter le partage</button></div>
     </div>
   </div>
 
 </main>
 
-<footer>Le code de salle relie les deux écrans — envoyez ce même site (le lien GitHub Pages) à votre ami·e.</footer>
+<footer>Flux transmis en direct entre vos deux écrans — rien n'est enregistré.</footer>
 
-<!-- Firebase (compat SDK, simple à utiliser sans étape de build) -->
-<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 (function(){
 
   // ======================================================
-  // 1) COLLEZ ICI LA CONFIGURATION DE VOTRE PROJET FIREBASE
-  //    (Console Firebase > Paramètres du projet > Vos applications)
+  // 1) COLLEZ ICI LES INFOS DE VOTRE PROJET SUPABASE
+  //    (Project Settings > API : "Project URL" et "anon public" key)
   // ======================================================
-  const firebaseConfig = {
-    apiKey: "REMPLACEZ_MOI",
-    authDomain: "REMPLACEZ_MOI.firebaseapp.com",
-    databaseURL: "https://REMPLACEZ_MOI-default-rtdb.firebaseio.com",
-    projectId: "REMPLACEZ_MOI"
-  };
+  const SUPABASE_URL = "REMPLACEZ_MOI";
+  const SUPABASE_ANON_KEY = "REMPLACEZ_MOI";
   // ======================================================
 
   const configWarning = document.getElementById('configWarning');
-  const isConfigured = firebaseConfig.apiKey && firebaseConfig.apiKey.indexOf('REMPLACEZ') === -1;
+  const isConfigured = SUPABASE_URL.indexOf('REMPLACEZ') === -1 && SUPABASE_ANON_KEY.indexOf('REMPLACEZ') === -1;
   if (!isConfigured){ configWarning.style.display = 'block'; }
 
-  let rtdb = null;
-  if (isConfigured){
-    firebase.initializeApp(firebaseConfig);
-    rtdb = firebase.database();
-  }
-
-  const CLIENT_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const sb = isConfigured ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
   const panelLanding = document.getElementById('panelLanding');
   const panelHostSetup = document.getElementById('panelHostSetup');
@@ -192,13 +164,12 @@
   const joinError = document.getElementById('joinError');
 
   const hostCode = document.getElementById('hostCode');
-  const urlInput = document.getElementById('urlInput');
-  const loadBtn = document.getElementById('loadBtn');
+  const shareScreenBtn = document.getElementById('shareScreenBtn');
+  const shareCamBtn = document.getElementById('shareCamBtn');
 
   const player = document.getElementById('player');
-  const ytFrame = document.getElementById('ytFrame');
-  const resyncBtn = document.getElementById('resyncBtn');
-  const changeBtn = document.getElementById('changeBtn');
+  const statusLine = document.getElementById('statusLine');
+  const stopBtn = document.getElementById('stopBtn');
 
   const roomBadge = document.getElementById('roomBadge');
   const roomCodeLabel = document.getElementById('roomCodeLabel');
@@ -207,24 +178,16 @@
   const peerLabel = document.getElementById('peerLabel');
 
   const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  function genCode(){
-    let c = '';
-    for (let i=0;i<6;i++) c += CHARS[Math.floor(Math.random()*CHARS.length)];
-    return c;
-  }
+  function genCode(){ let c=''; for(let i=0;i<6;i++) c+=CHARS[Math.floor(Math.random()*CHARS.length)]; return c; }
+  const SENDER_ID = Math.random().toString(36).slice(2);
 
-  let currentCode = null;
-  let applyingRemote = false;
-  let mode = 'video';
-  let currentUrl = null;
-  let ytState = { playing:false, currentTime:0, lastUpdate:Date.now() };
-  let ytListenTimer = null;
-  let stateRef = null;
+  let channel = null, currentCode = null, isHost = false;
+  let pc = null, localStream = null, lastOffer = null;
 
   function showPanel(el){
     [panelLanding, panelHostSetup, panelWaiting].forEach(p => p.classList.remove('active'));
     stage.style.display = 'none';
-    if (el === stage){ stage.style.display = 'block'; }
+    if (el === stage) stage.style.display = 'block';
     else el.classList.add('active');
   }
 
@@ -238,7 +201,6 @@
   });
 
   function setRoomBadge(code){ roomCodeLabel.textContent = code; roomBadge.classList.add('show'); }
-
   copyCodeBtn.addEventListener('click', () => {
     if (!currentCode) return;
     if (navigator.clipboard && navigator.clipboard.writeText){
@@ -249,202 +211,123 @@
     }
   });
 
+  function setStatus(text){ statusLine.innerHTML = '<strong>' + text + '</strong>'; }
+
   function connectToCode(code){
     currentCode = code;
     setRoomBadge(code);
-    if (!rtdb){ peerLabel.textContent = 'Firebase non configuré'; return; }
+    if (!sb){ peerLabel.textContent = 'Supabase non configuré'; return; }
 
-    stateRef = rtdb.ref('rooms/' + code + '/state');
-    stateRef.on('value', snap => {
-      const state = snap.val();
-      if (!state || state.clientId === CLIENT_ID) return;
-      handleRemoteState(state);
-    });
-
-    const presRef = rtdb.ref('rooms/' + code + '/presence/' + CLIENT_ID);
-    presRef.set(true);
-    presRef.onDisconnect().remove();
-    rtdb.ref('rooms/' + code + '/presence').on('value', snap => {
-      const val = snap.val();
-      const n = val ? Object.keys(val).length : 1;
+    channel = sb.channel('cinema-' + code, { config: { broadcast: { self: false }, presence: { key: SENDER_ID } } });
+    channel.on('broadcast', { event: 'signal' }, (msg) => handleSignal(msg.payload));
+    channel.on('presence', { event: 'sync' }, () => {
+      const state = channel.presenceState();
+      const n = Object.keys(state).length;
       peerDot.classList.remove('off');
       peerLabel.textContent = n > 1 ? n + ' personnes ici' : "en attente de l'autre écran…";
     });
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED'){
+        channel.track({ online: true });
+        if (!isHost) send({ type:'request-offer' });
+      }
+    });
   }
 
+  function send(msg){
+    msg.from = SENDER_ID;
+    if (channel) channel.send({ type:'broadcast', event:'signal', payload: msg });
+  }
+
+  function newPeerConnection(){
+    const conn = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+    conn.onicecandidate = (e) => {
+      if (e.candidate) send({ type:'candidate', candidate: e.candidate, role: isHost ? 'host' : 'guest' });
+    };
+    conn.ontrack = (e) => {
+      player.srcObject = e.streams[0];
+      setStatus('En direct');
+      showPanel(stage);
+    };
+    conn.onconnectionstatechange = () => {
+      if (conn.connectionState === 'connected') setStatus('En direct');
+      else if (conn.connectionState === 'disconnected' || conn.connectionState === 'failed') setStatus('Connexion perdue — réessayez');
+    };
+    return conn;
+  }
+
+  // --- HOST ---
   createBtn.addEventListener('click', () => {
     const code = genCode();
     connectToCode(code);
+    isHost = true;
     hostCode.textContent = code;
     showPanel(panelHostSetup);
-    urlInput.focus();
   });
 
-  loadBtn.addEventListener('click', () => {
-    const url = urlInput.value.trim();
-    if (!url) return;
-    startVideo(url);
-    persistState({ url, playing:false, time:0 }, 'load');
-    changeBtn.style.display = 'inline-block';
+  async function startShare(getStream){
+    try { localStream = await getStream(); }
+    catch(e){ setStatus('Autorisation refusée ou impossible'); return; }
+
+    pc = newPeerConnection();
+    localStream.getTracks().forEach(t => {
+      pc.addTrack(t, localStream);
+      t.addEventListener('ended', () => { setStatus('Partage terminé'); });
+    });
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    lastOffer = pc.localDescription;
+    send({ type:'offer', sdp: lastOffer });
+
+    player.srcObject = localStream;
+    stopBtn.style.display = 'inline-block';
+    setStatus('En attente que votre ami·e rejoigne…');
     showPanel(stage);
-  });
+  }
 
-  changeBtn.addEventListener('click', () => {
+  shareScreenBtn.addEventListener('click', () => startShare(() => navigator.mediaDevices.getDisplayMedia({ video:true, audio:true })));
+  shareCamBtn.addEventListener('click', () => startShare(() => navigator.mediaDevices.getUserMedia({ video:true, audio:true })));
+
+  stopBtn.addEventListener('click', () => {
+    if (localStream) localStream.getTracks().forEach(t => t.stop());
+    if (pc) pc.close();
+    player.srcObject = null;
     showPanel(panelHostSetup);
-    urlInput.value = '';
-    urlInput.focus();
   });
 
-  joinBtn.addEventListener('click', async () => {
+  // --- GUEST ---
+  joinBtn.addEventListener('click', () => {
     const code = codeInput.value.trim().toUpperCase();
     if (code.length < 4) return;
     joinError.classList.remove('show');
+    isHost = false;
     connectToCode(code);
-
-    if (!rtdb) return;
-    try {
-      const snap = await rtdb.ref('rooms/' + code + '/state').once('value');
-      const state = snap.val();
-      if (state && state.url){
-        applyRemoteState(state, true);
-        showPanel(stage);
-      } else {
-        showPanel(panelWaiting);
-      }
-    } catch(e){
-      showPanel(panelWaiting);
-    }
+    showPanel(panelWaiting);
   });
 
-  resyncBtn.addEventListener('click', async () => {
-    if (!rtdb || !currentCode) return;
-    const snap = await rtdb.ref('rooms/' + currentCode + '/state').once('value');
-    const state = snap.val();
-    if (state) applyRemoteState(state, true);
-  });
-
-  // --- source detection ---
-  function extractYouTubeId(url){
-    try{
-      const u = new URL(url);
-      const host = u.hostname.replace(/^www\./, '');
-      if (host === 'youtu.be') return u.pathname.slice(1);
-      if (host === 'youtube.com' || host === 'm.youtube.com'){
-        if (u.searchParams.get('v')) return u.searchParams.get('v');
-        const m = u.pathname.match(/\/embed\/([^/?]+)/);
-        if (m) return m[1];
-      }
-    } catch(e){}
-    return null;
+  async function handleOffer(sdp){
+    pc = newPeerConnection();
+    await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    send({ type:'answer', sdp: pc.localDescription });
   }
 
-  function startVideo(url){
-    currentUrl = url;
-    const ytId = extractYouTubeId(url);
-    if (ytId){
-      mode = 'youtube';
-      player.style.display = 'none';
-      ytFrame.style.display = 'block';
-      ytState = { playing:false, currentTime:0, lastUpdate:Date.now() };
-      ytFrame.src = 'https://www.youtube.com/embed/' + ytId + '?enablejsapi=1&playsinline=1&rel=0';
-      clearInterval(ytListenTimer);
-      let tries = 0;
-      ytListenTimer = setInterval(() => {
-        tries++;
-        try {
-          if (ytFrame.contentWindow) ytFrame.contentWindow.postMessage(JSON.stringify({event:'listening', id:'ytplayer', channel:'widget'}), '*');
-        } catch(e){}
-        if (tries > 20) clearInterval(ytListenTimer);
-      }, 300);
-    } else {
-      mode = 'video';
-      ytFrame.style.display = 'none';
-      player.style.display = 'block';
-      if (player.getAttribute('src') !== url) player.src = url;
-    }
-  }
-
-  function ytPostCommand(func, args){
-    if (!ytFrame.contentWindow) return;
-    try { ytFrame.contentWindow.postMessage(JSON.stringify({event:'command', func:func, args: args === undefined ? '' : args}), '*'); } catch(e){}
-  }
-
-  function seekAndPlay(time, playing, force){
-    if (mode === 'youtube'){
-      const delay = force ? 1200 : 0;
-      setTimeout(() => {
-        ytPostCommand('seekTo', [time, true]);
-        if (playing) ytPostCommand('playVideo'); else ytPostCommand('pauseVideo');
-        ytState.playing = playing; ytState.currentTime = time; ytState.lastUpdate = Date.now();
-      }, delay);
-    } else {
-      if (force || Math.abs(player.currentTime - time) > 0.6){
-        try { player.currentTime = time; } catch(e){}
-      }
-      if (playing) player.play().catch(()=>{}); else player.pause();
-    }
-  }
-
-  window.addEventListener('message', (e) => {
-    if (mode !== 'youtube') return;
-    let data;
-    try { data = JSON.parse(e.data); } catch(err){ return; }
-    if (data.event === 'infoDelivery' && data.info){
-      const info = data.info;
-      const now = Date.now();
-      if (typeof info.currentTime === 'number'){
-        if (ytState.playing && !applyingRemote){
-          const expected = ytState.currentTime + (now - ytState.lastUpdate) / 1000;
-          if (Math.abs(info.currentTime - expected) > 1.5) localSeek(info.currentTime, ytState.playing);
-        }
-        ytState.currentTime = info.currentTime;
-        ytState.lastUpdate = now;
-      }
-      if (typeof info.playerState === 'number'){
-        if (!applyingRemote){
-          if (info.playerState === 1 && !ytState.playing){ ytState.playing = true; localPlay(ytState.currentTime); }
-          else if (info.playerState === 2 && ytState.playing){ ytState.playing = false; localPause(ytState.currentTime); }
-        } else {
-          ytState.playing = (info.playerState === 1);
-        }
+  async function handleSignal(msg){
+    if (!msg || msg.from === SENDER_ID) return;
+    if (msg.type === 'request-offer' && isHost && lastOffer){
+      send({ type:'offer', sdp: lastOffer });
+    } else if (msg.type === 'offer' && !isHost){
+      await handleOffer(msg.sdp);
+    } else if (msg.type === 'answer' && isHost && pc){
+      try { await pc.setRemoteDescription(new RTCSessionDescription(msg.sdp)); } catch(e){}
+    } else if (msg.type === 'candidate' && pc){
+      const wantRole = isHost ? 'guest' : 'host';
+      if (msg.role === wantRole){
+        try { await pc.addIceCandidate(msg.candidate); } catch(e){}
       }
     }
-  });
-
-  player.addEventListener('play', () => localPlay(player.currentTime));
-  player.addEventListener('pause', () => localPause(player.currentTime));
-  player.addEventListener('seeked', () => localSeek(player.currentTime, !player.paused));
-
-  function localPlay(time){ if (applyingRemote) return; persistState({ url: currentUrl, playing:true, time }, 'play'); }
-  function localPause(time){ if (applyingRemote) return; persistState({ url: currentUrl, playing:false, time }, 'pause'); }
-  function localSeek(time, playing){ if (applyingRemote) return; persistState({ url: currentUrl, playing, time }, 'seek'); }
-
-  function persistState(state, action){
-    if (!stateRef) return;
-    stateRef.set(Object.assign({}, state, {
-      action: action,
-      clientId: CLIENT_ID,
-      updatedAt: Date.now()
-    }));
-  }
-
-  function applyRemoteState(state, force){
-    handleRemoteState(state, force);
-  }
-
-  function handleRemoteState(state, forceOverride){
-    if (!state || !state.url) return;
-    const isNewVideo = (state.url !== currentUrl);
-    const force = forceOverride || isNewVideo || state.action === 'load' || state.action === 'seek';
-
-    applyingRemote = true;
-    if (isNewVideo) startVideo(state.url);
-    let target = state.time || 0;
-    if (state.playing && state.updatedAt) target += (Date.now() - state.updatedAt) / 1000;
-    seekAndPlay(target, !!state.playing, force);
-    setTimeout(() => { applyingRemote = false; }, (mode === 'youtube') ? (force ? 1600 : 300) : (force ? 500 : 200));
-
-    if (panelWaiting.classList.contains('active')) showPanel(stage);
   }
 })();
 </script>
